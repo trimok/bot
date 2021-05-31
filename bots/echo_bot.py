@@ -104,6 +104,7 @@ class EchoBot(ActivityHandler):
         
         # Telemetry text bot
         tc.track_event('Bot request', { 'text': message_in })
+        tc.flush()
         
         # Replace
         message_in = re.sub('(\d+)st','\\1 st', message_in)
@@ -155,14 +156,17 @@ class EchoBot(ActivityHandler):
             except Exception as e:
                 # Telemetry
                 tc.track_event('Bot exception Luis response management', {'message_in': message_in, 'luis_response':data, 'text': str(e) })
+                tc.flush()
                 message = "We don't understand your message."            
         except Exception as e:    
             # Telemetry
             tc.track_event('Bot exception Luis', { 'message_in': message_in, 'text': str(e) })
+            tc.flush()
             message = "We don't understand your message."   
         
         # Telemetry
         tc.track_event('Bot response', {'text': message })
+        tc.flush()
         
         # La réponse                          
         return await turn_context.send_activity(                             
