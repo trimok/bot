@@ -5,6 +5,7 @@ from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from botbuilder.schema import ChannelAccount
 import requests
 import re
+import applicationinsights
 from applicationinsights import TelemetryClient
 
 url_luis_locale = "https://westeurope.api.cognitive.microsoft.com"
@@ -160,10 +161,10 @@ class EchoBot(ActivityHandler):
             tc.track_event('Bot exception Luis', { 'message_in': message_in, 'text': str(e) })
             message = "We don't understand your message."   
         
+        # Telemetry
+        tc.track_event('Bot response', {'text': message })
+        
         # La réponse                          
-        return await turn_context.send_activity(     
-            # Telemetry
-            tc.track_event('Bot response', {'text': message })
-            
+        return await turn_context.send_activity(                             
             MessageFactory.text(message)
         )
