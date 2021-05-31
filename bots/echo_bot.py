@@ -5,6 +5,7 @@ from botbuilder.core import ActivityHandler, MessageFactory, TurnContext
 from botbuilder.schema import ChannelAccount
 import requests
 import re
+from applicationinsights import TelemetryClient
 
 url_luis_locale = "https://westeurope.api.cognitive.microsoft.com"
 url_service_prediction_app = "/luis/prediction/v3.0/apps/" 
@@ -12,6 +13,9 @@ url_service_prediction_key = "/slots/production/predict?subscription-key="
 url_service_prediction_query = "&verbose=true&show-all-intents=true&log=true" 
 key_prediction_ressource = 'a16a0e1abc7a408a8e66ee03693d5f14'
 app_id_luis = '690a3b83-f738-4430-8d76-3a30e516da8a'
+
+instrumentation_key="1021fc72-bd40-48e1-a4a3-2624d953441e"
+tc = TelemetryClient(instrumentation_key)
 
 # Construit une URL de prédiction
 def make_url_prediction ():
@@ -93,8 +97,12 @@ class EchoBot(ActivityHandler):
                 await turn_context.send_activity("Hello and welcome!")
 
     async def on_message_activity(self, turn_context: TurnContext):
+        global tc
         
         message_in = turn_context.activity.text
+        
+        # Telemetry text bot
+        tc.track_event('Bot request', { 'text': message_in })
         
         # Replace
         message_in = re.sub('(\d+)st','\\1 st', message_in)
@@ -105,44 +113,57 @@ class EchoBot(ActivityHandler):
         message_in = re.sub('(\d+)USD','\\1 USD', message_in)
         
         # luis query
-        data, intents, entities, error = query_luis(message_in)
-        
-        # Construction de la réponse        
-        
-        # Intentions            
-        message = "Your Intent : \n"                
-        best_score = 0
-        best_key = 0
-        for key in intents:
-            if intents[key]['score'] > best_score:
-                best_score = intents[key]['score']
-                best_key = key
-        intent = best_key        
-
-        # Entités    
-        dict_entities = {}
-        dict_entities['str_date'] = ""
-        dict_entities['end_date'] = ""
-        dict_entities['or_city']=""
-        dict_entities['dst_city']=""
-        dict_entities['budget']=""        
-        
-        dict_prefix_entities = {}
-        
-        dict_prefix_entities['str_date'] = " from : "
-        dict_prefix_entities['end_date'] = " to : "
-        dict_prefix_entities['or_city']=" departure date : "
-        dict_prefix_entities['dst_city']=" return date : "
-        dict_prefix_entities['budget']=" for a maximum budget of :  "                
-                      
-        for key in entities:
-            dict_entities[key] = dict_prefix_entities[key] + str(entities[key][0]['text']) + "\n\n"
-           
-        # le message de retour
-        message = "Do you you want to {} a flight\n\n{}{}{}{}{}". \
-                  format(intent, dict_entities['or_city'], dict_entities['dst_city'], dict_entities['str_date'], \
-                                               dict_entities['end_date'], dict_entities['budget'])
+        try:
+            data, intents, entities, error = query_luis(message_in)
             
-        return await turn_context.send_activity(                     
+            # Construction de la réponse        
+            try:
+                # Intentions            
+                message = "Your Intent : \n"                
+                best_score = 0
+                best_key = 0
+                for key in intents:
+                    if intents[key]['score'] > best_score:
+                        best_score = intents[key]['score']
+                        best_key = key
+                intent = best_key        
+
+                # Entités    
+                dict_entities = {}
+                dict_entities['str_date'] = ""
+                dict_entities['end_date'] = ""
+                dict_entities['or_city']=""
+                dict_entities['dst_city']=""
+                dict_entities['budget']=""        
+
+                dict_prefix_entities = {}
+
+                dict_prefix_entities['str_date'] = " from : "
+                dict_prefix_entities['end_date'] = " to : "
+                dict_prefix_entities['or_city']=" departure date : "
+                dict_prefix_entities['dst_city']=" return date : "
+                dict_prefix_entities['budget']=" for a maximum budget of :  "                
+
+                for key in entities:
+                    dict_entities[key] = dict_prefix_entities[key] + str(entities[key][0]['text']) + "\n\n"
+
+                # le message de retour
+                message = "Do you you want to {} a flight\n\n{}{}{}{}{}". \
+                          format(intent, dict_entities['or_city'], dict_entities['dst_city'], dict_entities['str_date'], \
+                                                       dict_entities['end_date'], dict_entities['budget'])
+            except Exception as e:
+                # Telemetry
+                tc.track_event('Bot exception Luis response management', {'message_in': message_in, 'luis_response':data, 'text': str(e) })
+                message = "We don't understand your message."            
+        except Exception as e:    
+            # Telemetry
+            tc.track_event('Bot exception Luis', { 'message_in': message_in, 'text': str(e) })
+            message = "We don't understand your message."   
+        
+        # La réponse                          
+        return await turn_context.send_activity(     
+            # Telemetry
+            tc.track_event('Bot response', {'text': message })
+            
             MessageFactory.text(message)
         )
