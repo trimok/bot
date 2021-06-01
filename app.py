@@ -12,6 +12,9 @@ from botbuilder.core import (
     BotFrameworkAdapterSettings,
     TurnContext,
     BotFrameworkAdapter,
+    MemoryStorage,
+    UserState,
+    TurnContext
 )
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.schema import Activity, ActivityTypes
@@ -57,8 +60,12 @@ async def on_error(context: TurnContext, error: Exception):
 
 ADAPTER.on_turn_error = on_error
 
+# Create MemoryStorage, UserState
+MEMORY = MemoryStorage()
+USER_STATE = UserState(MEMORY)
+
 # Create the Bot
-BOT = EchoBot()
+BOT = EchoBot(USER_STATE)
 
 
 # Listen for incoming requests on /api/messages
