@@ -206,7 +206,7 @@ def handler_state_question(state, message_in):
             
             # Mémorisation des informations dans l'état du bot
             state.state = STATE_FINAL
-            state.message = message
+            state.message_out = message
             state.or_city = dict_entities['or_city']
             state.dst_city = dict_entities['dst_city']
             state.str_date= dict_entities['str_date']
@@ -223,7 +223,7 @@ def handler_state_question(state, message_in):
         message = state.name + ", I don't understand your message."   
 
     # Mémorisation du message en entrée   
-    state.message = message_in
+    state.message_in = message_in
     
     return message
 
@@ -309,7 +309,7 @@ def handler_state_final(state, message_in):
                 message =  state.name + ", you have a fly : \n\ngo : from {} to {}, departure {}, \n\nback : from {} to {}, departure {}, \n\nprice : {} USD ". \
                          format(begin_origin_city, begin_destination_city, begin_departure_date, 
                               end_origin_city, end_destination_city, end_departure_date, price)
-                tc.track_event('Bot success', {'message_in': state.message_in, 'message':state.message})
+                tc.track_event('Bot success', {'message_in': state.message_in, 'message_out':state.message_out})
                 tc.flush()     
                 
             if  error is not None:
@@ -317,11 +317,11 @@ def handler_state_final(state, message_in):
         except Exception as e:
             print (str(e))
             message = "Sorry, " +  state.name + ", we don't find a fly."
-            tc.track_event('Bot noflyfound', {'message_in': state.message_in, 'message':state.message})
+            tc.track_event('Bot noflyfound', {'message_in': state.message_in, 'message_out':state.message_out})
             tc.flush()                    
     else :
         message = state.name + ', sorry to not have understading your question'
-        tc.track_event('Bot exception Bad Luis Analysis', {'message_in': state.message_in, 'message':state.message})
+        tc.track_event('Bot exception Bad Luis Analysis', {'message_in': state.message_in, 'message_out':state.message_out})
         tc.flush()
     state.state = STATE_QUESTION  
     
@@ -329,10 +329,11 @@ def handler_state_final(state, message_in):
     
 # La classe Etat
 class State:
-    def __init__(self, state: int = STATE_WELCOME, message_in:str ='', message_luis:str='', name:str='',
+    def __init__(self, state: int = STATE_WELCOME, message_in:str ='', message_out:str ='', message_luis:str='', name:str='',
                 or_city:str='', dst_city:str='', str_date:str='', end_date:str=''):
         self.state = state    
         self.message_in = message_in
+        self.message_out = message_out
         self.message_luis = message_luis
         self.name = name
         self.or_city=or_city
