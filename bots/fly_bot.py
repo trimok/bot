@@ -21,9 +21,7 @@ app_id_luis = '690a3b83-f738-4430-8d76-3a30e516da8a'
 instrumentation_key="1021fc72-bd40-48e1-a4a3-2624d953441e"
 tc = TelemetryClient(instrumentation_key)
 
-# Skyscanner
-
-# Construit une URL de prédiction
+# Construit une URL de prédiction LUIS
 def make_url_prediction ():
 
     global url_service_prediction_app
@@ -241,30 +239,31 @@ def handler_state_final(state, message_in):
             }
             
             apikey = "ra66933236979928"
+            
+            url_get_token = "https://partners.api.skyscanner.net/apiservices/token/v2/gettoken"
+            url_get_code_city = "http://partners.api.skyscanner.net/apiservices/autosuggest/v1.0/US/USD/us"
+            url_get_quotes = "https://partners.api.skyscanner.net/apiservices/browsequotes/v1.0/US/USD/us/"
 
             # Obtention d'un token
             params = {"apiKey":apikey}
-            url = "https://partners.api.skyscanner.net/apiservices/token/v2/gettoken"
-            token, error = connection(url, headers=headers, params=params, post=False)
+            token, error = connection(url_get_token, headers=headers, params=params, post=False)
             
             # Recherche du code correspondant à la ville de départ
             if error is None:                
                 params = {"apiKey":apikey, "query":state.or_city}
-                url = "http://partners.api.skyscanner.net/apiservices/autosuggest/v1.0/US/USD/us"    
-                data, error = connection(url, headers=headers, params=params, post=False)
+                data, error = connection(url_get_code_city, headers=headers, params=params, post=False)
                 or_city_code = data["Places"][0]['PlaceId']
 
             # Recherche du code correspondant à la ville de destination    
             if error is None:                    
                 params = {"apiKey":apikey, "query":state.dst_city}
-                url = "http://partners.api.skyscanner.net/apiservices/autosuggest/v1.0/US/USD/us"    
-                data, error = connection(url, headers=headers, params=params, post=False)
+                data, error = connection(url_get_code_city, headers=headers, params=params, post=False)
                 dst_city_code = data["Places"][0]['PlaceId']
 
             # Construction de l'url d'interrogation pour obtenir les vols
             if error is None: 
                 params = {"apiKey":apikey}
-                url = "https://partners.api.skyscanner.net/apiservices/browsequotes/v1.0/US/USD/us/" \
+                url = url_get_quotes \
                       + or_city_code \
                       + "/" \
                       + dst_city_code \
@@ -342,7 +341,7 @@ class State:
         self.end_date=end_date
   
 # La classe Bot
-class EchoBot(ActivityHandler):
+class FlyBot(ActivityHandler):
     def __init__(self, user_state: UserState):
         if user_state is None:
             raise TypeError(

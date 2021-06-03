@@ -19,7 +19,7 @@ from botbuilder.core import (
 from botbuilder.core.integration import aiohttp_error_middleware
 from botbuilder.schema import Activity, ActivityTypes
 
-from bots import EchoBot
+from bots import FlyBot
 from config import DefaultConfig
 
 CONFIG = DefaultConfig()
@@ -65,7 +65,7 @@ MEMORY = MemoryStorage()
 USER_STATE = UserState(MEMORY)
 
 # Create the Bot
-BOT = EchoBot(USER_STATE)
+BOT = FlyBot(USER_STATE)
 
 
 # Listen for incoming requests on /api/messages
