@@ -141,7 +141,7 @@ STATE_FINAL = 3
 # Traitement du démarraage de la conversation
 def handler_state_welcome(state):
     state.state = STATE_NAME
-    message = "Welcome to the Air Canada reservation center! What is your first name ?"
+    message = "Welcome to FLY ME ! What is your first name ?"
 
     return message
 
