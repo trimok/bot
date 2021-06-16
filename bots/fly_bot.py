@@ -198,14 +198,35 @@ def handler_state_question(state, message_in):
             for key in entities:
                 dict_format_entities[key] = dict_prefix_entities[key] + str(entities[key][0]['text']) + "\n\n"
                 dict_entities[key] = str(entities[key][0]['text'])
-
-            # le message de retour
-            message = state.name + ", do you mean you want to {} a flight : \n\n{}{}{}{}{}\n\n(yes/no)". \
-                      format(intent, dict_format_entities['or_city'], dict_format_entities['dst_city'], 
-                             dict_format_entities['str_date'], dict_format_entities['end_date'], dict_format_entities['budget'])
+                
+            # Toutes les informations sont-elle présentes ?
+            message_error = ""
+            if  dict_entities['str_date'] == "anytime":
+                message_error = message_error  + "Departure date, \n"                
+            if dict_entities['end_date'] == "anytime":
+                message_error = message_error  + "Return date, \n"                
+            if dict_entities['or_city'] == "":
+                message_error = message_error  + "Departure city, \n"                
+            if dict_entities['dst_city'] == "":
+                message_error = message_error  + "Return city, \n"
+            if dict_entities['budget'] == "": 
+                message_error = message_error  + "Budget, \n"
             
-            # Mémorisation des informations dans l'état du bot
-            state.state = STATE_FINAL
+            # S'il n'y a pas toutes les infos, on retourne un message d'erreur
+            if message_error != "":
+                message  = state.name + ", Some data are missing  : {}\n\n{}{}{}{}{}\n\n". \
+                      format(message_error, intent, dict_format_entities['or_city'], dict_format_entities['dst_city'], 
+                             dict_format_entities['str_date'], dict_format_entities['end_date'], dict_format_entities['budget'])
+           
+            # Si tout va bien
+            else:
+                # le message de retour
+                message = state.name + ", do you mean you want to {} a flight : \n\n{}{}{}{}{}\n\n(yes/no)". \
+                          format(intent, dict_format_entities['or_city'], dict_format_entities['dst_city'], 
+                                 dict_format_entities['str_date'], dict_format_entities['end_date'], dict_format_entities['budget'])
+
+                # Mémorisation des informations dans l'état du bot
+                state.state = STATE_FINAL
             state.message_out = message
             state.or_city = dict_entities['or_city']
             state.dst_city = dict_entities['dst_city']
@@ -215,12 +236,12 @@ def handler_state_question(state, message_in):
             # Telemetry
             tc.track_event('Bot exception Luis response management', {'message_in': message_in, 'luis_response':data, 'text': str(e) })
             tc.flush()
-            message = state.name + ", I don't understand your message."                       
+            message = state.name + ", I don't understand your message, this is a site for flight reservation.\n\n Please give departure/return city, departure/return city, budget"                       
     except Exception as e:    
         # Telemetry
         tc.track_event('Bot exception Luis', { 'message_in': message_in, 'text': str(e) })
         tc.flush()
-        message = state.name + ", I don't understand your message."   
+        message = state.name + ", I don't understand your message, this is a site for flight reservation.\n\n Please give departure/return city, departure/return city, budget"   
 
     # Mémorisation du message en entrée   
     state.message_in = message_in
