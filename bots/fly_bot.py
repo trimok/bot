@@ -145,6 +145,15 @@ def handler_state_welcome(state):
 
     return message
 
+# Retour à un état vide
+def reset_state(state):
+    state.message_in = ''
+    state.or_city = ''
+    state.dst_city = ''
+    state.str_date = 'anytime'
+    state.end_date = 'anytime'
+    state.budget = ''
+
 # Gestion après l'envoi du prénom
 def handler_state_name(state, message_in):
     state.name = message_in
@@ -157,6 +166,10 @@ def handler_state_name(state, message_in):
 def handler_state_question(state, message_in):
      # luis query
     try:
+        # Concaténation des questions précédentes (si données incomplètes)
+        message_in = state.message_in + " " + message_in
+        
+        # Interrogation Luis
         data, intents, entities, error = query_luis(message_in)
 
         # Construction de la réponse        
@@ -173,11 +186,13 @@ def handler_state_question(state, message_in):
 
             # Entités    
             dict_entities = {}
-            dict_entities['str_date'] = "anytime"
-            dict_entities['end_date'] = "anytime"
-            dict_entities['or_city']=""
-            dict_entities['dst_city']=""
-            dict_entities['budget']=""        
+                        
+            # On reprend les données déjà existantes
+            dict_entities['str_date'] = state.str_date
+            dict_entities['end_date'] = state.end_date
+            dict_entities['or_city'] = state.or_city
+            dict_entities['dst_city']= state.dst_city
+            dict_entities['budget']= state.budget        
 
             dict_prefix_entities = {}
 
@@ -194,10 +209,19 @@ def handler_state_question(state, message_in):
             dict_format_entities['dst_city']=""
             dict_format_entities['budget']=""        
 
-
             for key in entities:
                 dict_format_entities[key] = dict_prefix_entities[key] + str(entities[key][0]['text']) + "\n\n"
                 dict_entities[key] = str(entities[key][0]['text'])
+                
+            # Mémorisation au niveau de l'état conversationnel    
+            state.message_out = message  
+            print("Mémorisation message_in dans state")
+            state.message_in = message_in
+            state.or_city = dict_entities['or_city']
+            state.dst_city = dict_entities['dst_city']
+            state.str_date= dict_entities['str_date']
+            state.end_date = dict_entities['end_date']
+            state.budget = dict_entities['budget']                
                 
             # Toutes les informations sont-elle présentes ?
             message_error = ""
@@ -214,37 +238,44 @@ def handler_state_question(state, message_in):
             
             # S'il n'y a pas toutes les infos, on retourne un message d'erreur
             if message_error != "":
-                message  = state.name + ", Some data are missing  : {}\n\n{}{}{}{}{}\n\n". \
-                      format(message_error, intent, dict_format_entities['or_city'], dict_format_entities['dst_city'], 
-                             dict_format_entities['str_date'], dict_format_entities['end_date'], dict_format_entities['budget'])
+                message  = state.name + ", Some data are missing  : {}".format(message_error)                      
            
             # Si tout va bien
             else:
+                
+                dict_format_entities['str_date'] = dict_prefix_entities['str_date'] + state.str_date + "\n\n"
+                dict_format_entities['end_date'] = dict_prefix_entities['end_date'] + state.end_date + "\n\n"
+                dict_format_entities['or_city'] = dict_prefix_entities['or_city'] + state.or_city + "\n\n"
+                dict_format_entities['dst_city'] = dict_prefix_entities['dst_city'] + state.dst_city + "\n\n"
+                dict_format_entities['budget'] = dict_prefix_entities['budget'] + state.budget + "\n\n"
+                
                 # le message de retour
-                message = state.name + ", do you mean you want to {} a flight : \n\n{}{}{}{}{}\n\n(yes/no)". \
-                          format(intent, dict_format_entities['or_city'], dict_format_entities['dst_city'], 
+                message = state.name + ", do you mean you want to book a flight : \n\n{}{}{}{}{}\n\n(yes/no)". \
+                          format(dict_format_entities['or_city'], dict_format_entities['dst_city'], 
                                  dict_format_entities['str_date'], dict_format_entities['end_date'], dict_format_entities['budget'])
 
                 # Mémorisation des informations dans l'état du bot
                 state.state = STATE_FINAL
-            state.message_out = message
-            state.or_city = dict_entities['or_city']
-            state.dst_city = dict_entities['dst_city']
-            state.str_date= dict_entities['str_date']
-            state.end_date = dict_entities['end_date']
+                           
         except Exception as e:
-            # Telemetry
+            # Telemetry            
             tc.track_event('Bot exception Luis response management', {'message_in': message_in, 'luis_response':data, 'text': str(e) })
             tc.flush()
-            message = state.name + ", I don't understand your message, this is a site for flight reservation.\n\n Please give departure/return city, departure/return city, budget"                       
-    except Exception as e:    
+            message = state.name + ", I don't understand your message, this is a site for flight reservation.\n\n Please give             departure/return city, departure/return city, budget"                       
+            # Retour à un état 'vide'
+            reset_state(state)
+
+    except Exception as e:
         # Telemetry
         tc.track_event('Bot exception Luis', { 'message_in': message_in, 'text': str(e) })
         tc.flush()
         message = state.name + ", I don't understand your message, this is a site for flight reservation.\n\n Please give departure/return city, departure/return city, budget"   
+        # Retour à un état 'vide'
+        reset_state(state)
 
     # Mémorisation du message en entrée   
-    state.message_in = message_in
+    # print("Mémorisation message_in dans state")
+    # state.message_in = message_in
     
     return message
 
@@ -344,14 +375,19 @@ def handler_state_final(state, message_in):
         message = state.name + ', sorry to not have understading your question'
         tc.track_event('Bot exception Bad Luis Analysis', {'message_in': state.message_in, 'message_out':state.message_out})
         tc.flush()
+        
+        
     state.state = STATE_QUESTION  
+    
+    # Retour à un état 'vide'
+    reset_state(state)
     
     return message
     
 # La classe Etat
 class State:
     def __init__(self, state: int = STATE_WELCOME, message_in:str ='', message_out:str ='', message_luis:str='', name:str='',
-                or_city:str='', dst_city:str='', str_date:str='', end_date:str=''):
+                or_city:str='', dst_city:str='', str_date:str='anytime', end_date:str='anytime', budget:str=''):
         self.state = state    
         self.message_in = message_in
         self.message_out = message_out
@@ -361,6 +397,7 @@ class State:
         self.dst_city=dst_city
         self.str_date=str_date
         self.end_date=end_date
+        self.budget=budget
   
 # La classe Bot
 class FlyBot(ActivityHandler):
@@ -405,10 +442,7 @@ class FlyBot(ActivityHandler):
         )
         # Trace
         print("state " + str(state.state))   
-        
-        # Mémorisation du message
-        state.message_in = message_in                
-        
+                
         # Telemetry text bot
         tc.track_event('Bot request', { 'text': message_in })
         tc.flush()
